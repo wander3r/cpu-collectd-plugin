@@ -3,13 +3,13 @@
 
 import collectd
 import time
-
+import os
 
 # Global variables
 
 NAME = 'cpu_info'
-VERBOSE = True
-
+VERBOSE = False
+statfile = '/tmp/collectd_cpustat'
 
 # Helper functions
 
@@ -17,10 +17,19 @@ def get_stats():
     """ Reads /proc/stat and returns array of cpu stats.
     """
     with open('/proc/stat', 'r') as f:
-        arr = f.readline().split()
-    arr.pop(0)
+        arr = f.readline()
+    	with open(statfile, 'w') as sf:
+	    sf.write(arr)
+    arr = arr.split()[1:]
     return ([float(a) for a in arr ] + [0] * 10)[:10]
 
+def get_last_stats():
+    """ Read last stat from stat file
+    """
+    with open(statfile, 'r') as f:
+	arr = f.readline().split()
+    arr.pop(0)
+    return ([float(a) for a in arr ] + [0] * 10)[:10]
 
 def log(t, message):
     """ Log messages to collectd logger
@@ -74,9 +83,14 @@ def read_callback():
 def get_cpustats():
     """ Get CPU stats in percentages
     """
-    cpu = get_stats()
-    time.sleep(5)
-    cpun = get_stats()
+    #cpu = get_stats()
+    if not os.path.isfile(statfile):
+    	cpu = get_stats()
+    	time.sleep(5)
+    	cpun = get_stats()
+    else:
+    	cpu = get_last_stats()
+    	cpun = get_stats()
 
     deltas = [ n[0] - n[1] for n in zip(cpun, cpu) ]
     dj = sum(deltas)
